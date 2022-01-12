@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use optimum::{
     components::coverage::Coverage,
     core::Problem,
-    metaheuristics::genetic::{Decoder, Key},
+    metaheuristics::genetic::{Decoder, RandomKey},
 };
 
 use crate::MaximumDiversity;
@@ -27,7 +27,7 @@ impl<'a> ExperimentalDecoder<'a> {
 impl Decoder for ExperimentalDecoder<'_> {
     type P = MaximumDiversity;
 
-    fn decode(&self, member: &[Key]) -> <Self::P as Problem>::Value {
+    fn decode(&self, member: &[RandomKey]) -> <Self::P as Problem>::Solution {
         let mut solution = MdpSolution {
             elements: vec![0; self.problem.solution_size],
         };
@@ -54,7 +54,11 @@ impl Decoder for ExperimentalDecoder<'_> {
         #[cfg(debug_assertions)]
         check_for_collisions(&solution);
 
-        self.problem.objective_function(&solution)
+        solution
+    }
+
+    fn problem(&self) -> &Self::P {
+        self.problem
     }
 }
 

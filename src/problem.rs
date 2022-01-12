@@ -1,5 +1,5 @@
 use ndarray::Array2;
-use optimum::core::{Objective, Problem};
+use optimum::core::{Evaluation, Objective, Problem};
 use ordered_float::NotNan;
 
 pub mod decoders;
@@ -21,13 +21,14 @@ impl Problem for MaximumDiversity {
 
     type Value = NotNan<f64>;
 
-    fn objective_function(&self, solution: &Self::Solution) -> Self::Value {
+    fn objective_function(&self, solution: Self::Solution) -> Evaluation<Self> {
         let mut value = 0.0;
         for (i, a) in solution.elements.iter().copied().enumerate() {
             for b in solution.elements[(i + 1)..].iter().copied() {
                 value += self.matrix[[a, b]];
             }
         }
-        NotNan::new(value).expect("objective function failed")
+        let value = NotNan::new(value).expect("objective function failed");
+        Evaluation::new(solution, value)
     }
 }
