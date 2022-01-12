@@ -1,17 +1,14 @@
 mod cli;
 
-use std::{
-    fs::read_to_string,
-    path::Path,
-    time::{Duration, Instant},
-};
+use std::{fs::read_to_string, path::Path, time::Duration};
 
 use clap::StructOpt;
 use cli::{DecoderChooser, Opts};
 use mdp_brkga::{CurrentDecoder, ExperimentalDecoder, MaximumDiversity};
 use ndarray::Array2;
 use optimum::{
-    core::{stop_criterion::TimeCriterion, Solver},
+    analysis::battery::{Battery, Statistics},
+    core::stop_criterion::TimeCriterion,
     metaheuristics::genetic::{
         brkga::{Brkga, Params},
         Decoder,
@@ -49,24 +46,23 @@ fn main() -> std::io::Result<()> {
 }
 
 fn run<D: Decoder<P = MaximumDiversity>>(decoder: D, params: Params, seed: usize) {
-    let rng = rand_pcg::Pcg64::seed_from_u64(seed as u64);
+    let stop_criterion = TimeCriterion::new(Duration::from_secs(1));
 
-    let start = Instant::now();
+    let build_solver = |seed, exec_number| {
+        let rng = rand_pcg::Pcg64::seed_from_u64((seed + exec_number) as u64);
 
-    let mut brkga = Brkga::new(&decoder, rng, params);
+        Brkga::new(&decoder, rng, params)
+    };
 
-    println!("Initial best: {}", brkga.best().value);
+    let battery = Battery::new(seed, 10, build_solver, &stop_criterion).unwrap();
 
-    let mut stop_criterion = TimeCriterion::new(Duration::from_secs(10));
-
-    brkga.solve(&mut stop_criterion);
-
-    let elapsed = start.elapsed().as_secs_f64();
+    let statistics = Statistics::new(&battery);
+    let (_, best, _) = statistics.best();
     println!(
-        "Final best: {}, total time: {}, average evolution time: {}",
-        brkga.best().value,
-        elapsed,
-        elapsed / brkga.current_generation() as f64
+        "Final best: {}, average value: {}, average time: {}",
+        best.value(),
+        statistics.average_value(),
+        statistics.average_time().as_secs_f64(),
     );
 }
 
