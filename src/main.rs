@@ -1,53 +1,73 @@
-use std::{fmt::Display, fs::read_to_string, path::Path};
+mod cli;
 
+use std::{
+    fs::read_to_string,
+    path::Path,
+    time::{Duration, Instant},
+};
+
+use clap::StructOpt;
+use cli::{DecoderChooser, Opts};
 use mdp_brkga::{CurrentDecoder, ExperimentalDecoder, MaximumDiversity};
 use ndarray::Array2;
 use optimum::{
-    core::Problem,
-    metaheuristics::genetic::{Brkga, BrkgaParams, Decoder},
+    core::{stop_criterion::TimeCriterion, Solver},
+    metaheuristics::genetic::{
+        brkga::{Brkga, Params},
+        Decoder,
+    },
 };
 use rand::SeedableRng;
 
 fn main() -> std::io::Result<()> {
-    //let problem = load_input(Path::new("MDG-b_21_n2000_m200.txt"))?;
-    let problem = load_input(Path::new("matrizn500_m200.txt"))?;
+    let opts = Opts::parse();
 
-    if std::env::args().count() == 2 {
-        println!("Using new decoder");
-        let decoder = ExperimentalDecoder::new(&problem);
-        run(decoder, problem.solution_size);
-    } else {
-        println!("Using current decoder");
-        let decoder = CurrentDecoder::new(&problem);
-        run(decoder, problem.input_size);
+    let problem = load_input(&opts.problem)?;
+
+    let create_params = |member_size: usize| Params {
+        population_size: opts.population_size.try_into().unwrap(),
+        member_size: member_size.try_into().unwrap(),
+        elites: opts.elites,
+        mutants: opts.mutants,
+        crossover_bias: opts.crossover_bias,
+    };
+
+    match opts.decoder {
+        DecoderChooser::New => {
+            println!("Using new decoder");
+            let decoder = ExperimentalDecoder::new(&problem);
+            run(decoder, create_params(problem.solution_size), opts.seed);
+        }
+        DecoderChooser::Current => {
+            println!("Using current decoder");
+            let decoder = CurrentDecoder::new(&problem);
+            run(decoder, create_params(problem.input_size), opts.seed);
+        }
     }
 
     Ok(())
 }
 
-fn run<D: Decoder>(decoder: D, members_size: usize)
-where
-    <D::P as Problem>::Value: Display,
-{
-    let rng = rand_pcg::Pcg64::seed_from_u64(1);
+fn run<D: Decoder<P = MaximumDiversity>>(decoder: D, params: Params, seed: usize) {
+    let rng = rand_pcg::Pcg64::seed_from_u64(seed as u64);
 
-    let params = BrkgaParams {
-        population_size: 100.try_into().unwrap(),
-        members: members_size.try_into().unwrap(),
-        elites: 20,
-        mutants: 30,
-        crossover_bias: 0.8,
-    };
+    let start = Instant::now();
+
     let mut brkga = Brkga::new(&decoder, rng, params);
 
     println!("Initial best: {}", brkga.best().value);
 
-    let total_generations = 1000;
-    for _ in 0..total_generations {
-        brkga.evolve();
-    }
+    let mut stop_criterion = TimeCriterion::new(Duration::from_secs(10));
 
-    println!("Final best: {}", brkga.best().value);
+    brkga.solve(&mut stop_criterion);
+
+    let elapsed = start.elapsed().as_secs_f64();
+    println!(
+        "Final best: {}, total time: {}, average evolution time: {}",
+        brkga.best().value,
+        elapsed,
+        elapsed / brkga.current_generation() as f64
+    );
 }
 
 fn load_input(path: &Path) -> std::io::Result<MaximumDiversity> {
