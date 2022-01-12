@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.52"
+clap = { version = "3.0.4", features = ["derive"] }
 ndarray = "0.15.4"
 optimum = { git = "https://github.com/dbofmmbt/optimum", branch = "main" }
 ordered-float = "2.8.0"
