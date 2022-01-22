@@ -212,12 +212,13 @@ dependencies = [
 [[package]]
 name = "optimum"
 version = "0.0.3"
-source = "git+https://github.com/dbofmmbt/optimum?branch=main#a1cc77770ee041be4acb0991dcf77992033b53f2"
+source = "git+https://github.com/dbofmmbt/optimum?branch=main#ed7dca174544f4a559790f2a6a54fc4c2dbcf27b"
 dependencies = [
  "derive_more",
  "num-traits",
  "rand",
  "thiserror",
+ "typed-builder",
 ]
 
 [[package]]
@@ -402,6 +403,17 @@ name = "thiserror-impl"
 version = "1.0.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa32fd3f627f367fe16f893e2597ae3c05020f8bba2666a4e6ea73d377e5714b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "typed-builder"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a46ee5bd706ff79131be9c94e7edcb82b703c487766a114434e5790361cf08c5"
 dependencies = [
  "proc-macro2",
  "quote",

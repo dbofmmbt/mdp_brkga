@@ -55,14 +55,32 @@ fn run<D: Decoder<P = MaximumDiversity>>(decoder: D, params: Params, seed: usize
         Brkga::new(&decoder, rng, params)
     };
 
-    let batch = Batch::new(seed, 10, build_solver, &stop_criterion, hook::Empty).unwrap();
+    let batch = Batch::builder()
+        .base_seed(seed)
+        .executions(10)
+        .solver(build_solver)
+        .stop_criterion(&stop_criterion)
+        .hook(hook::Empty)
+        .build()
+        .run()
+        .unwrap();
+
+    for execution in batch.evaluations().iter() {
+        println!(
+            "EXEC {} VALUE {} TIME {}",
+            execution.0,
+            execution.1.value(),
+            execution.2.as_secs_f64()
+        );
+    }
 
     let statistics = Statistics::new(&batch);
     let (_, best, _) = statistics.best();
     println!(
-        "Final best: {}, average value: {}, average time: {}",
+        "Final best: {}, average value: {}, std dev: {}, average time: {}",
         best.value(),
         statistics.average_value(),
+        statistics.value_variance().sqrt(),
         statistics.average_time().as_secs_f64(),
     );
 }
