@@ -7,7 +7,8 @@ use cli::{DecoderChooser, Opts};
 use mdp_brkga::{CurrentDecoder, ExperimentalDecoder, MaximumDiversity};
 use ndarray::Array2;
 use optimum::{
-    analysis::battery::{Battery, Statistics},
+    analysis::batch::{Batch, Statistics},
+    core::solver::hook,
     core::stop_criterion::TimeCriterion,
     metaheuristics::genetic::{
         brkga::{Brkga, Params},
@@ -54,9 +55,9 @@ fn run<D: Decoder<P = MaximumDiversity>>(decoder: D, params: Params, seed: usize
         Brkga::new(&decoder, rng, params)
     };
 
-    let battery = Battery::new(seed, 10, build_solver, &stop_criterion).unwrap();
+    let batch = Batch::new(seed, 10, build_solver, &stop_criterion, hook::Empty).unwrap();
 
-    let statistics = Statistics::new(&battery);
+    let statistics = Statistics::new(&batch);
     let (_, best, _) = statistics.best();
     println!(
         "Final best: {}, average value: {}, average time: {}",

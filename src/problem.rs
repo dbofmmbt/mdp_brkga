@@ -10,6 +10,7 @@ pub struct MaximumDiversity {
     pub input_size: usize,
 }
 
+#[derive(Debug)]
 pub struct MdpSolution {
     elements: Vec<usize>,
 }
