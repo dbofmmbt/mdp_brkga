@@ -212,7 +212,7 @@ dependencies = [
 [[package]]
 name = "optimum"
 version = "0.0.3"
-source = "git+https://github.com/dbofmmbt/optimum?branch=main#ed7dca174544f4a559790f2a6a54fc4c2dbcf27b"
+source = "git+https://github.com/dbofmmbt/optimum?branch=main#7e3b0cc1ac7d966686dd16c1279c3f8b83b10a79"
 dependencies = [
  "derive_more",
  "num-traits",

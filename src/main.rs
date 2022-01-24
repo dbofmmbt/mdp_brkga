@@ -1,6 +1,6 @@
 mod cli;
 
-use std::{fs::read_to_string, path::Path, time::Duration};
+use std::{fs::read_to_string, path::Path};
 
 use clap::StructOpt;
 use cli::{DecoderChooser, Opts};
@@ -8,10 +8,9 @@ use mdp_brkga::{CurrentDecoder, ExperimentalDecoder, MaximumDiversity};
 use ndarray::Array2;
 use optimum::{
     analysis::batch::{Batch, Statistics},
-    core::solver::hook,
-    core::stop_criterion::TimeCriterion,
+    core::{solver::IterHook, stop_criterion::IterCriterion, Problem},
     metaheuristics::genetic::{
-        brkga::{Brkga, Params},
+        brkga::{Brkga, BrkgaHook, Params},
         Decoder,
     },
 };
@@ -47,7 +46,7 @@ fn main() -> std::io::Result<()> {
 }
 
 fn run<D: Decoder<P = MaximumDiversity>>(decoder: D, params: Params, seed: usize) {
-    let stop_criterion = TimeCriterion::new(Duration::from_secs(1));
+    let stop_criterion = IterCriterion::new(1000);
 
     let build_solver = |seed, exec_number| {
         let rng = rand_pcg::Pcg64::seed_from_u64((seed + exec_number) as u64);
@@ -55,32 +54,36 @@ fn run<D: Decoder<P = MaximumDiversity>>(decoder: D, params: Params, seed: usize
         Brkga::new(&decoder, rng, params)
     };
 
+    let hook = MyHook::default();
+
     let batch = Batch::builder()
         .base_seed(seed)
         .executions(10)
         .solver(build_solver)
-        .stop_criterion(&stop_criterion)
-        .hook(hook::Empty)
+        .stop_criterion(stop_criterion)
+        .hook(hook)
         .build()
         .run()
         .unwrap();
 
-    for execution in batch.evaluations().iter() {
+    for execution in batch.executions().iter() {
+        for (idx, value) in execution.hook().values.iter().enumerate() {
+            println!("ITER {number} LOCAL_SEARCH {value}", number = idx + 1);
+        }
         println!(
             "EXEC {} VALUE {} TIME {}",
-            execution.0,
-            execution.1.value(),
-            execution.2.as_secs_f64()
+            execution.number(),
+            execution.evaluation().value(),
+            execution.duration().as_secs_f64()
         );
     }
 
     let statistics = Statistics::new(&batch);
-    let (_, best, _) = statistics.best();
+    let best_execution = statistics.best();
     println!(
-        "Final best: {}, average value: {}, std dev: {}, average time: {}",
-        best.value(),
+        "average value: {} best value: {} average time: {}",
         statistics.average_value(),
-        statistics.value_variance().sqrt(),
+        best_execution.evaluation().value(),
         statistics.average_time().as_secs_f64(),
     );
 }
@@ -116,3 +119,19 @@ fn load_input(path: &Path) -> std::io::Result<MaximumDiversity> {
         input_size,
     })
 }
+
+#[derive(Debug, Default, Clone)]
+struct MyHook {
+    values: Vec<f64>,
+}
+
+impl<P: Problem> IterHook<P> for MyHook
+where
+    P::Value: Into<f64>,
+{
+    fn iterated(&mut self, new: &optimum::core::Evaluation<P>) {
+        self.values.push(new.value().into());
+    }
+}
+
+impl<D: Decoder> BrkgaHook<D> for MyHook where <D::P as Problem>::Value: Into<f64> {}
